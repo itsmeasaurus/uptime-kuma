@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -20,10 +21,15 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Install dependencies and build
+    - name: Clean install dependencies
       run: |
-        npm install -g vite
-        npm ci --legacy-peer-deps
+        rm -rf node_modules
+        rm -f package-lock.json
+        npm install
+        npm install express-session@1.17.3 passport@0.6.0 passport-azure-ad@4.3.5
+
+    - name: Build
+      run: |
         npm run build
 
     - name: Create deployment config files
