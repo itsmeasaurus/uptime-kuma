@@ -10,18 +10,20 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history and tags
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
 
-    # Run the setup script which:
-    # 1. Checks out version 1.23.15
-    # 2. Installs production dependencies
-    # 3. Downloads dist files
-    - name: Setup Uptime Kuma
-      run: npm run setup
+    # Install dependencies and build
+    - name: Install dependencies and build
+      run: |
+        npm ci
+        npm run build
+        npm run download-dist
 
     # Add startup command to Azure
     - name: Generate startup command
