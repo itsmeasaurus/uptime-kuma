@@ -60,14 +60,13 @@ jobs:
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: package.zip
         clean: true  # Enable clean deployment
-        app-settings-json: |
-          {
-            "STARTUP_COMMAND": "node server/server.js",
-            "NODE_ENV": "production",
-            "WEBSITES_PORT": "3001",
-            "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
-            "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
-          }
+
+    # Set app settings after deployment
+    - name: Update App Settings
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az webapp config appsettings set --name uptime-kuma-version-three --resource-group TestRG --settings STARTUP_COMMAND="node server/server.js" NODE_ENV="production" WEBSITES_PORT="3001" AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 
 env:
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
