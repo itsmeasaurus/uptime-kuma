@@ -1,7 +1,11 @@
 <template>
     <div class="form-container" data-cy="setup-form">
         <div class="form">
-            <form @submit.prevent="submit">
+            <button class="w-100 btn btn-primary mt-3" @click="loginWithMicrosoft">
+                {{ $t("Login with Microsoft") }}
+            </button>
+            
+            <form v-if="showLoginForm" @submit.prevent="submit">
                 <div>
                     <object width="64" height="64" data="/icon.svg" />
                     <div style="font-size: 28px; font-weight: bold; margin-top: 5px;">
@@ -53,6 +57,7 @@ export default {
             username: "",
             password: "",
             repeatPassword: "",
+            showLoginForm: true,
         };
     },
     watch: {
@@ -94,6 +99,9 @@ export default {
                     });
                 }
             });
+        },
+        loginWithMicrosoft() {
+            window.location.href = '/auth/microsoft';
         },
     },
 };

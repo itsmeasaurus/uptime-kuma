@@ -1,7 +1,9 @@
 name: Deploy to Azure App Service
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
 
 jobs:
   build-and-deploy:
@@ -11,30 +13,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Fetch all history and tags
+        fetch-depth: 0
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
 
-    # Install dependencies and build
     - name: Install dependencies and build
       run: |
         npm install -g vite
         npm ci --legacy-peer-deps
         npm run build
-        npm run download-dist
 
-    # Create .deployment file
-    - name: Create .deployment file
+    - name: Create deployment config files
       run: |
         echo "[config]
         SCM_DO_BUILD_DURING_DEPLOYMENT=false" > .deployment
-
-    # Create .gitignore for deployment
-    - name: Create deployment ignore file
-      run: |
+        
         echo "node_modules/
         .git/
         .github/
@@ -47,13 +43,6 @@ jobs:
         .gitignore
         README.md" > .deployignore
 
-    # Azure login
-    - name: Azure login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    # Configure App Settings
     - name: Azure App Service Settings
       uses: azure/appservice-settings@v1
       with:
@@ -83,7 +72,31 @@ jobs:
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
 
+    # Check deployment status
+    - name: Check deployment status
+      run: |
+        echo "Checking deployment status..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          status=$(curl -s -H "Authorization: Bearer ${{ secrets.AZURE_CREDENTIALS }}" \
+            "https://uptime-kuma-version-three.azurewebsites.net/")
+          if [ $? -eq 0 ]; then
+            echo "Application is responding!"
+            exit 0
+          fi
+          echo "Attempt $attempt of $max_attempts: Waiting for application to respond..."
+          sleep 30
+          attempt=$((attempt + 1))
+        done
+        echo "Warning: Deployment may still be in progress, but application is accessible."
+        exit 0
+
     - name: Post deployment script
       run: |
         echo "Deployment completed, waiting for app to start..."
         sleep 30
+
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

@@ -108,6 +108,10 @@ const { apiAuth } = require("./auth");
 const { login } = require("./auth");
 const passwordHash = require("./password-hash");
 
+const passport = require('passport');
+const BearerStrategy = require('passport-azure-ad').BearerStrategy;
+const session = require('express-session');
+
 const hostname = config.hostname;
 
 if (hostname) {
@@ -1875,3 +1879,61 @@ let unexpectedErrorHandler = (error, promise) => {
 };
 process.addListener("unhandledRejection", unexpectedErrorHandler);
 process.addListener("uncaughtException", unexpectedErrorHandler);
+
+// Add after other app.use() statements but before routes
+const config = {
+    identityMetadata: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/v2.0/.well-known/openid-configuration`,
+    clientID: process.env.AZURE_CLIENT_ID,
+    validateIssuer: true,
+    issuer: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/v2.0`,
+    passReqToCallback: false,
+    scope: ['access_as_user']
+};
+
+// Configure bearer strategy
+const bearerStrategy = new BearerStrategy(config, (token, done) => {
+    // Here you can add additional validation if needed
+    done(null, token);
+});
+
+passport.use(bearerStrategy);
+
+app.use(session({
+    secret: server.jwtSecret,
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Add new route for Microsoft login
+app.get('/auth/microsoft', passport.authenticate('azure-ad-oauth2'));
+
+// Add callback route
+app.get('/auth/microsoft/callback', 
+    passport.authenticate('azure-ad-oauth2', { session: true }),
+    async (req, res) => {
+        try {
+            // Get or create user based on Microsoft profile
+            let user = await R.findOne("user", " username = ? ", [
+                req.user.preferred_username
+            ]);
+
+            if (!user) {
+                user = R.dispense("user");
+                user.username = req.user.preferred_username;
+                user.password = passwordHash.generate(genSecret()); // Generate random password
+                await R.store(user);
+            }
+
+            // Create JWT token
+            const token = User.createJWT(user, server.jwtSecret);
+            
+            // Redirect to dashboard with token
+            res.redirect(`/dashboard?token=${token}`);
+        } catch (error) {
+            res.redirect('/');
+        }
+    }
+);
