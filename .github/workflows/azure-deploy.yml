@@ -75,4 +75,10 @@ jobs:
       with:
         app-name: 'uptime-kuma-version-three'
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: . 
+        package: .
+        startup-command: 'npm run start'
+
+    - name: Post deployment script
+      run: |
+        echo "Deployment completed, waiting for app to start..."
+        sleep 30
