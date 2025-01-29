@@ -49,54 +49,20 @@ jobs:
         .gitignore
         README.md" > .deployignore
 
-    - name: Azure App Service Settings
-      uses: azure/appservice-settings@v1
-      with:
-        app-name: uptime-kuma-version-three
-        slot-name: production
-        app-settings-json: |
-          [
-            {
-              "name": "STARTUP_COMMAND",
-              "value": "node server/server.js"
-            },
-            {
-              "name": "NODE_ENV",
-              "value": "production"
-            },
-            {
-              "name": "WEBSITES_PORT",
-              "value": "3001"
-            }
-          ]
-        mask-inputs: false
-
     - name: Deploy to Azure App Service
       uses: azure/webapps-deploy@v3
       with:
         app-name: uptime-kuma-version-three
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
-
-    # Check deployment status
-    - name: Check deployment status
-      run: |
-        echo "Checking deployment status..."
-        max_attempts=10
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-          status=$(curl -s -H "Authorization: Bearer ${{ secrets.AZURE_CREDENTIALS }}" \
-            "https://uptime-kuma-version-three.azurewebsites.net/")
-          if [ $? -eq 0 ]; then
-            echo "Application is responding!"
-            exit 0
-          fi
-          echo "Attempt $attempt of $max_attempts: Waiting for application to respond..."
-          sleep 30
-          attempt=$((attempt + 1))
-        done
-        echo "Warning: Deployment may still be in progress, but application is accessible."
-        exit 0
+        app-settings-json: |
+          {
+            "STARTUP_COMMAND": "node server/server.js",
+            "NODE_ENV": "production",
+            "WEBSITES_PORT": "3001",
+            "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
+            "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
+          }
 
     - name: Post deployment script
       run: |
