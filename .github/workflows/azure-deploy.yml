@@ -21,7 +21,8 @@ jobs:
     # Install dependencies and build
     - name: Install dependencies and build
       run: |
-        npm ci --only=production
+        npm install -g vite
+        npm ci --legacy-peer-deps
         npm run build
         npm run download-dist
 
