@@ -40,22 +40,17 @@ jobs:
       run: |
         npm run build
 
-    - name: Create deployment config files
+    - name: Prepare deployment package
       run: |
+        # Create deployment config
         echo "[config]
         SCM_DO_BUILD_DURING_DEPLOYMENT=false" > .deployment
-        
-        echo "node_modules/
-        .git/
-        .github/
-        .vscode/
-        test/
-        extra/
-        docker/
-        config/
-        .env
-        .gitignore
-        README.md" > .deployignore
+
+        # Create a clean deployment package
+        mkdir deploy
+        cp -r dist server node_modules package.json .deployment deploy/
+        cd deploy
+        zip -r ../package.zip .
 
     - name: Deploy to Azure App Service
       id: deploy
@@ -63,7 +58,8 @@ jobs:
       with:
         app-name: uptime-kuma-version-three
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: .
+        package: package.zip
+        clean: true  # Enable clean deployment
         app-settings-json: |
           {
             "STARTUP_COMMAND": "node server/server.js",
