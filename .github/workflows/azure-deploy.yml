@@ -8,12 +8,17 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true  # Cancel any running deployments
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20  # Increased timeout for stability
+
+    strategy:
+      matrix:
+        node-version: [20]
+      fail-fast: false
 
     steps:
     - name: Checkout repository
@@ -21,47 +26,52 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Cache Node.js modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
 
-    - name: Clean install dependencies
+    - name: Install dependencies
       run: |
-        rm -rf node_modules
-        rm -f package-lock.json
-        npm install --no-audit --no-optional
+        npm ci
         npm install express-session@1.17.3 passport@0.6.0 passport-azure-ad@4.3.5
 
     - name: Build
       env:
         NODE_ENV: production
-        SKIP_LINT: true  # Skip linting during build
+        SKIP_LINT: true
       run: |
         npm run build
 
     - name: Prepare deployment package
       run: |
-        # Create deployment config
-        echo "[config]
-        SCM_DO_BUILD_DURING_DEPLOYMENT=false" > .deployment
-
-        # Create a clean deployment package
         mkdir deploy
-        cp -r dist server node_modules package.json .deployment deploy/
+        cp -r dist server node_modules package.json deploy/
         cd deploy
         zip -r ../package.zip .
 
     - name: Deploy to Azure App Service
       id: deploy
-      uses: azure/webapps-deploy@v3
+      uses: azure/webapps-deploy@v4
       with:
         app-name: uptime-kuma-version-three
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: package.zip
-        clean: true  # Enable clean deployment
+        clean: true  # Forces a clean deployment
 
-    # Set app settings after deployment
+    - name: Restart App Service (Fix Stuck State)
+      run: |
+        az webapp restart --name uptime-kuma-version-three --resource-group TestRG
+
     - name: Update App Settings
       uses: azure/CLI@v1
       with:
