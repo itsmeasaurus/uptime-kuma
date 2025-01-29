@@ -1,0 +1,37 @@
+name: Deploy to Azure App Service
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # Run the setup script which:
+    # 1. Checks out version 1.23.15
+    # 2. Installs production dependencies
+    # 3. Downloads dist files
+    - name: Setup Uptime Kuma
+      run: npm run setup
+
+    # Add startup command to Azure
+    - name: Generate startup command
+      run: |
+        echo "node server/server.js" > startup.txt
+
+    - name: Deploy to Azure App Service
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: 'uptime-kuma-version-three'
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: .
+        startup-command: 'node server/server.js' 
