@@ -21,9 +21,30 @@ jobs:
     # Install dependencies and build
     - name: Install dependencies and build
       run: |
-        npm ci
+        npm ci --only=production
         npm run build
         npm run download-dist
+
+    # Create .deployment file
+    - name: Create .deployment file
+      run: |
+        echo "[config]
+        SCM_DO_BUILD_DURING_DEPLOYMENT=false" > .deployment
+
+    # Create .gitignore for deployment
+    - name: Create deployment ignore file
+      run: |
+        echo "node_modules/
+        .git/
+        .github/
+        .vscode/
+        test/
+        extra/
+        docker/
+        config/
+        .env
+        .gitignore
+        README.md" > .deployignore
 
     # Create web.config for Azure
     - name: Create web.config
@@ -36,12 +57,6 @@ jobs:
             </handlers>
             <rewrite>
               <rules>
-                <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
-                  <match url="^server/server.js\/debug[\/]?" />
-                </rule>
-                <rule name="StaticContent">
-                  <action type="Rewrite" url="public{REQUEST_URI}"/>
-                </rule>
                 <rule name="DynamicContent">
                   <conditions>
                     <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
@@ -50,13 +65,6 @@ jobs:
                 </rule>
               </rules>
             </rewrite>
-            <security>
-              <requestFiltering>
-                <hiddenSegments>
-                  <remove segment="bin"/>
-                </hiddenSegments>
-              </requestFiltering>
-            </security>
             <iisnode node_env="production" nodeProcessCommandLine="node"/>
           </system.webServer>
         </configuration>' > web.config
