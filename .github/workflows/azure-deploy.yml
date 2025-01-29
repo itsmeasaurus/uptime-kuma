@@ -47,11 +47,18 @@ jobs:
         .gitignore
         README.md" > .deployignore
 
+    # Azure login
+    - name: Azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     # Configure App Settings
     - name: Azure App Service Settings
       uses: azure/appservice-settings@v1
       with:
         app-name: uptime-kuma-version-three
+        slot-name: production
         app-settings-json: |
           [
             {
